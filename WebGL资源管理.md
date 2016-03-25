@@ -31,7 +31,8 @@ gl.deleteTexture(texture)
 ```js
 var canvas = document.createElement("canvas")
 var gl = canvas.getContext("webgl")
-// do something you like ...
+// do something
+// ......
 gl = null
 canvas = null
 ```
@@ -94,11 +95,12 @@ OK！WebGLTexture JS 虚拟机不管，<image> 总得管吧。我们换个角度
 回忆起来，我们如何使用 WebGL 纹理的。WebGL 有一些纹理通道，我们先用 gl.activeTexture() 激活纹理通道，再用 gl.bindTexture() 绑定纹理，这样纹理就和纹理通道关联起来了，之后在 shader 中，我们可以通过纹理通道的编号（0-7 或者更多）来索引我们的纹理。
 
 ```js
-    gl.activeTexture(_webGL.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, tex[index])
-    gl.bindTexture(gl.TEXTURE_2D, null)
-    gl.uniform1i(uniform, 0)
-   // ...
+gl.activeTexture(_webGL.TEXTURE0)
+gl.bindTexture(gl.TEXTURE_2D, tex[index])
+gl.bindTexture(gl.TEXTURE_2D, null)
+gl.uniform1i(uniform, 0)
+// do something
+// ...
 ```
 
 由此可见，整个渲染过程中纹理涉及两次绑定，一次是图片和纹理，一次是纹理和纹理通道。所有 OpenGL 教材教导我们：先图片与纹理，再纹理与纹理通道。为什么不可以反过来呢？
@@ -139,7 +141,7 @@ WebGLTexture 数量固定，不会收就不会收吧。除了当前被绑定的 
 
 这个方法只考虑了 texture 的管理，可以用 <canvas> 代替 framebuffer，还有 shader 和 buffer 没法管理。
 
-做过 2D 游戏（cocos2d 啊，egretD什么的）都知道，2D 游戏中不存在复杂的模型，绝大多数绘制对象是带贴图的矩形，被称为 sprite（精灵）。sprite 通常是没有对应 buffer 的，绘图时，引擎将 sprite 的顶点数据写入到一个公用的 buffer 中，最后批量提交 GPU 绘制。矩形的数据量小，公用 buffer 还能做一些特别的优化（主要是批量绘制，减少 WebGL 的 draw call 之类的）。buffer 的问题也得以解决。
+做过 2D 游戏（比如 cocos2d）都知道，2D 游戏中不存在复杂的模型，绝大多数绘制对象是带贴图的矩形，被称为 sprite（精灵）。sprite 通常是没有对应 buffer 的，绘图时，引擎将 sprite 的顶点数据写入到一个公用的 buffer 中，最后批量提交 GPU 绘制。矩形的数据量小，公用 buffer 还能做一些特别的优化（主要是批量绘制，减少 WebGL 的 draw call 之类的）。buffer 的问题也得以解决。
 
 要说shader嘛，全部常驻内存又何妨呢？
 所以这个方法在 2D 游戏中完全是可用的，AVG 可以用吗？可以。
@@ -158,52 +160,152 @@ WebGLTexture 数量固定，不会收就不会收吧。除了当前被绑定的 
 
 
 ## 古老的方法
-之前的讨论，我们一直尝试在JS的范畴内寻找解决办法。我们的需求其实是给不受GC管理的显存加上GC。倘若我们更原始的语言，比如C++中遇到此类问题会作何反应，自己艹一个咯。方法选引用计数，因为，简单，简单，简单。
-如果你用过C++，还读过 C++ primer 你多半对引用计数很熟悉。为了尽量减少手动IncRef()和DecRef()，我们这样设计：
+
+之前，我们一直尝试用 JS 内置的能力解决我们的问题，看起来方案二已经是极限了。能不能自己编程艹一个。我们的需求很简单，为 WebGL 里的对象加上 GC 功能。C++很擅长做这种事，解决方案几十年前就有了，我们选择引用计数，因为简单！简单！简单！
+
+如果你用过C++，还读过 C++ primer 你多半对引用计数很熟悉。我们将 WebGLTexture 包装到 Texture 中，并建立一个 map 来缓存来自同一个 url 的纹理。
+
+```js
 function Textrue(url) {
+    this.refCount = 0
     this.glTexture = gl.createTexture()
-    // init texture ...
+    // init texture
+    // .....
 }
-Texture.IncRef = function() { /* ... */ }
-Texture.DecRef = function() { /* ... */ }
-var textureMap = {}
+Texture.IncRef = function() {
+    return ++this.refCount
+}
+Texture.DecRef = function() {
+    if (0 == --this.refCount) {
+        gl.deleteTexture(this.glTexture)
+        this.glTexture = null
+    }
+}
+
+var textureMap = { }
+
 funciton newTexture(name) {
     if (textureMap[name]) {
         return textureMap[name]
     } else {
         var texture = new Texture(name)
         textureMap[name] = texture
-        return texture;
+        return texture
     }
 }
-为了方便地使用Texture类，我们的显示对象也需要改造。
-function Image() {
+```
+
+为了方便地使用 Texture 类，我们将应用中要显示的物体包装成显示对象，每一个显示对象对应一个可渲染的实体。比如一个精灵、一个 Live2d 小人，一个粒子系统、一个天空盒。我们尽量在显示对象的方法中增减引用计数，理想情况下可以不用手动IncRef()和DecRef()。
+
+```js
+function Sprite() {
     this.texture = null;
-    // ...
+    // init sprite
+    // ......
 }
-Image.prototype.setTexture(texture) {
+Sprite.prototype.setTexture = function(texture) {
     texture.IncRef()
-    if (this.texture && 0 == this.texture.DecRef()) {
-        tex.destory();
+    if (this.texture) {
+        this.texture.DecRef()
+    }
+    this.texture = texture
+}
+Sprite.prototype.destory = function() {
+    if (this.texture) {
+        this.texture.DecRef()
     }
 }
-我们将创建的全部texture保存在一个map中做引用计数，这个map负责资源管理的同时还承担了缓存的任务，当你创建两个url相同的texture时，不再需要新建一个texture。
-var image = new Image()
+```
+
+这样使用Sprite。
+
+```js
+var sprite = new Sprite()
 var texture = newTexture(url)
-image.setTexture(texture)
-将Texture置入Image之后，Image会在合适的时候销毁Texture。
-说实话引用计数勉强堪用，只不过在Image之外想引用Texture对象你就有的受了，你得自己增减引用计数，或者搭配上ArrayRef、MapRef之类的特殊容器。还得小心循环引用的问题，好在一般情况下Texture不会引用另一个Tex吧。
-比稍原生API有进步，但依然原始。旧版本的FenQi.Engine使用的是引用计数。
+sprite.setTexture(texture)
+// do something
+// ......
+sprite.destory()
+```
 
-5. 
+看出来了吗？有哪里不对劲。我们完成了 texture 的自动释放，代价是现在 Sprite 不用时需要调用 sprite.destory()，我们手动管理的对象从 texture 变成了 Sprite。
 
+究其原因，JS 中没有析构函数或 finalize() 函数，sprite.destory() 实际上 Sprite 的终结器，最好像 Java 一样，由 Java 虚拟机自动帮我们调用，JS 中不可以。
 
+那其它 GC 算法呢？JS 虚拟机本身使用的 GC 算法是 mark and sweep 这种算法需要定时遍历代码中全部的对象，找出死对象。JS 中，闭包里的对象外界是无权访问的。至于其他 GC 基本属于以上两种的改进。
 
-
-
-
-
-
-
+我们失败了。
 
 
+## 方案三：和场景在一起
+
+不要灰心嘛。既然我们成功过，不如来回顾一下我们为何成功。
+
+方案一中，WebGL 资源与 <canvas> 同时销毁，显示 WebGL 资源与场景之间存在联系。WebGL 资源之所以加载是为了显示场景，可见 JS 并无不对，问题在于整个 <canvas> 一起回收粒度太大。上一章节中我们所做的工作可以看成一种 显示对象与 WebGL 资源的绑定。
+
+无论是 cocos2d 或 three.js （都没用过，参考 DOM 树），Sprite 或者 Cube 一类的显示对象存在于一棵场景树中。场景树的特点是，当你希望显示一个对象时，将这个对象放入场景树，反之从场景树中移除。移除一个节点，该节点的子节点也随之被移除，这个特性很棒。
+
+于是，我们强制显示对象必须创建在渲染树上，而当渲染对象从渲染树中移除时，自动释放渲染对象上的 WebGL 资源。destory 操作容易被忽略，溢出显示可很难被忘记，如此 destory() 到 remove() 操作自然多了。另外对于那些仅仅想临时隐藏的显示对象，允许将它们设置为 invisible。此外再添加一个 move 操作，将节点连带其子节点从旧的父节点A，整体移动到新的父节点B。渲染对象始终保持在渲染树上，一旦被移除，意味着该渲染对象不再被显示，引用的资源也可以立即销毁。
+
+```js
+function Node(parent) {
+    this.parent = parent
+    this.children = []
+    parent.add(this)
+}
+Node.prototype.addChild = function(child) {
+    this.children.push(child);
+}
+Node.prototype.removeParent = function(child) {
+    this.children.remove(child); // 假装有remove函数
+    this.destory()
+}
+```
+
+方案二中，我们将 WebGLTexture （不便于 GC 的敏感内容）与用户隔离，达到了便于 JS GC 执行的目的。
+
+我们可以直接用 url 代替 texture。对于 buffer 这种临时创建的对象，提供两种接口。
+
+```js
+newBuffer(data: Array) => tmpID
+newBuffer(data: Array, ID: string) => ID
+```
+
+由系统分配一个临时ID，或用户自己取一个ID，如此不必担心误操作 WebGL 资源导致释放异常。
+
+再提供 CacheNode 缓存节点，便于预加载与缓存常用的资源，CacheNode 完全可以作为使用这些资源的节点的子节点，随它同生共死。
+
+基于以上这些规定，实际是我们把显示对象和 WebGL 资源人为地从 JS 的环境中拉出来单独做 GC，我们需求的 GC 现在已经上升为整个引擎的资源管理模块了。我们在资源管理模块中处理缓存，加载与释放资源。只要渲染树内存在对 WebGL资源&渲染对象的引用，那么WebGL资源&渲染对象存活，否则死亡。至于非渲染树上 JS 原生对象的引用，我们上无视了。这会造成问题吗？JS 原生对象无法引用到 WebGL资源，因为我们认为将 WebGL资源与外界隔离了。渲染对象，假如是活的，可以正常使用；假如是死的，已经被销毁过了，无法渲染，也没有内存泄漏。况且渲染对象会死，是因为它移除了渲染树，说明它再也不会被显示了，再也不会被现实的显示对象，留它何用，本来就不应该再被使用。
+
+现在资源管理模块已经基本堪用了。我们可以再贪心一点，现在的 GC 基于引用计数，还是需要人为介入，mark and sweep 不需要。我们之前不用 mark and sweep 是因为遍历不到全部的对象，但是现在不同，全部的对象都在渲染树里，我们完全可以递归地调用对象的\_\_gc()方法。
+
+```js
+Obj.prototype.__gc = function() {
+    for (var key in this) {
+        var val = this[key]
+        if ("function" == typeof(val.__gc)) {
+            val.__gcMark = true
+            val.__gc()
+        }
+    }
+}
+```
+
+由于我们的显示对象不会太多（超不过1000个吧），GC运行的速度尚可接受。而游戏的主循环，天生提供了运行GC的绝佳时机。跑完一轮 GC __gcMark 的为 false 的 WebGL资源 就可以被回收啦。吸取 JS 没有 GC 接口的教训，我们还可以提供让使用者主动挂起和发起 GC 的接口。切换场景时关闭 GC 不仅能提高效率，还能提高资源的重复使用率。
+
+### 优点
+* 完全的管理 WebGL 资源。
+* 提供使用者调节 GC 的能力。
+
+### 缺点
+* 和 WebGL API 一样，在 JS 中划出了自治区。
+
+
+## 最后
+如果你看到了这里，首先我需要感谢你和我一起花了这么些时间，这里的三种方法都不是完美的，甚至离接近完美也有些距离。WebGL API 的设计在赋予程序员精确的资源管理权限的同时也带来了不小的问题，以我一个人的能力也许只能到此止步了。
+如果你有什么好的想法愿意分享，私信我或者At我都可以，期望看见更漂亮的解答。
+
+
+===============
+By NaNuNo
+FenQi.Engine（一个想做动画的AVG引擎）
