@@ -307,5 +307,8 @@ Obj.prototype.__gc = function() {
 
 
 ===============
-* By NaNuNo
-* FenQi.Engine（一个想做动画的AVG引擎）
+By
+
+NaNuNo
+
+FenQi.Engine（一个想做*动画*的AVG引擎）
