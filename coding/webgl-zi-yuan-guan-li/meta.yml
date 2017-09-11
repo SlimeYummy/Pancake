@@ -1,0 +1,10 @@
+type: content-markdown
+title: WebGL 资源管理
+author: NaNuNoo
+date: 2016-06-23
+preMarkdown:
+  WebGL 在给 HTML5 带来 3D 能力的同时也带来了许多 OpenGL 固有的问题，其中 WebGL 显示资源（纹理、Shader、缓冲区等）的管理尤其让人头大。
+
+  与 DirectX 显示资源对应于 C++ 对象的管理方式不同，OpenGL 保留了古时基于资源句柄的资源管理方式。这在 C（手动管理）、C++（RAII）中不被视为问题；在 Java（finalize 函数）、Python（\_\_del\_\_ 函数）中被资源回收函数缓解；却在 JS 这种无法触及对象生命周期的语言中产生了巨大的麻烦。
+
+  本文会先说明 JS 中 WebGL 资源管理问题的由来，可能遇到该问题的场景，最后再提供三种在 JS 语言范畴内解决或规避问题的思路，每种思路的出发点各不相同，针对的应用场景也完全不同。

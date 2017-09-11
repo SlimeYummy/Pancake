@@ -1,4 +1,4 @@
-##Pancake 是什么
+## Pancake 是什么
 
 Pancake 里保存了 NaNuNoo 生成小站[分歧点 FenQi.IO](https://FenQi.IO)的原始文件。
 Pancake 中的文章都可以在[分歧点](https://FenQi.IO)中找到，并且排版更面向人眼，因此建议你到[分歧点](https://FenQi.IO)阅读。
