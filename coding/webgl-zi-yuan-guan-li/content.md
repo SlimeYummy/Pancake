@@ -1,8 +1,8 @@
 # WebGL 资源管理
 
-- NaNuNo
-- 17-01-01
-
+- NaNuNoo
+- 2016-06-23
+- https://fenqi.io/coding/webgl-zi-yuan-guan-li/
 
 
 WebGL 在给 HTML5 带来 3D 能力的同时也带来了许多 OpenGL 固有的问题，其中 WebGL 显示资源（纹理、Shader、缓冲区等）的管理尤其让人头大。

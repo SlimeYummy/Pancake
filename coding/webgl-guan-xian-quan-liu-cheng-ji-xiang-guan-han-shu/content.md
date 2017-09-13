@@ -1,5 +1,10 @@
 # WebGL 管线全流程及相关函数
 
+- NaNuNoo
+- 2016-11-27
+- https://fenqi.io/coding/webgl-guan-xian-quan-liu-cheng-ji-xiang-guan-han-shu/
+
+
 最近想把 FenQi.Engine 的渲染系统从原始的 WebGL 直接调用替换为材质系统。一来是方便合并 DrawCall，二来统一管理 WebGL 绘制状态，三来提供一个 JSON 的材质格式。
 
 为此，比照 WebGL reference card 把涉及绘制管线的每个函数都复习了一遍，整理成本文。

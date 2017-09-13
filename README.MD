@@ -1,7 +1,8 @@
-## Pancake 是什么
+##Pancake 是什么
 
-Pancake 里保存了 NaNuNoo 生成小站[分歧点 FenQi.IO](https://FenQi.IO)的原始文件。
-Pancake 中的文章都可以在[分歧点](https://FenQi.IO)中找到，并且排版更面向人眼，因此建议你到[分歧点](https://FenQi.IO)阅读。
+Pancake 里保存了 NaNuNoo 生成小站 [FenQi.IO 分歧点](https://FenQi.IO)的原始文件。
+
+Pancake 中的文章都可以在 [FenQi.IO](https://FenQi.IO) 中找到，并且排版更面向人眼，因此建议你到 [FenQi.IO](https://FenQi.IO) 阅读。
 
 
 
@@ -11,6 +12,8 @@ Pancake 中的文章都可以在[分歧点](https://FenQi.IO)中找到，并且�
 - /painting 里面装了 NaNuNoo 画的小姐姐。
 - /writing 轻小说、设定、读/观后感什么的。
 - /public 是公用资源杂物间。
+
+
 
 
 
