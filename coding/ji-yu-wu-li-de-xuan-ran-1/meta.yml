@@ -1,0 +1,19 @@
+debug: true
+type: content-markdown
+title: 基于物理的渲染 1
+author: NaNuNoo
+date: 2017-01-14
+preMarkdown:
+  基于物理的渲染（PBR）文章其一，包括：
+
+  + 光照、辐射的物理知识。
+
+  + 图形渲染用光照方程。
+
+  + BRDF 与 Lamert、Blinn-Phong 的关系。
+
+  + 漫反射 BRDF。
+
+  + 微表面理论。
+
+  + 镜面反射 BRDF。
